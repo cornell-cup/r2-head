@@ -8,9 +8,7 @@
                 hardware platforms.
  Complier:      Microchip C18 (for PIC18), XC16 (for PIC24/dsPIC), XC32 (for PIC32)
  Company:       Microchip Technology, Inc.
-
  Software License Agreement:
-
  The software supplied herewith by Microchip Technology Incorporated
  (the "Company") for its PIC(R) Microcontroller is intended and
  supplied to you, the Company's customer, for use solely and
@@ -21,17 +19,14 @@
  user to criminal sanctions under applicable laws, as well as to
  civil liability for the breach of the terms and conditions of this
  license.
-
  THIS SOFTWARE IS PROVIDED IN AN "AS IS" CONDITION. NO WARRANTIES,
  WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING, BUT NOT LIMITED
  TO, IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
  PARTICULAR PURPOSE APPLY TO THIS SOFTWARE. THE COMPANY SHALL NOT,
  IN ANY CIRCUMSTANCES, BE LIABLE FOR SPECIAL, INCIDENTAL OR
  CONSEQUENTIAL DAMAGES, FOR ANY REASON WHATSOEVER.
-
 ********************************************************************
  File Description:
-
  Change History:
   Rev   Description
   ----  -----------------------------------------
@@ -51,6 +46,7 @@
 #include "../includes/usb/usb.h"
 #include "../includes/usb/usb_function_cdc.h"
 #include "../includes/HardwareProfile.h"
+#include "../includes/R2Protocol.h"
 
 #include "../includes/Compiler.h"
 #include "../includes/usb/usb_config.h"
@@ -97,11 +93,10 @@ void loadBuffer(uint8_t* copyBuffer, uint16_t copyLength);
  *
  * Note:            None
  *******************************************************************/
-int ProcessIO(char* sourceBuffer, char* payloadBuffer, char* checksumBuffer, char* transactionBuffer)
+
+int ProcessIO(struct R2ProtocolPacket *packet)
 {
     int result = 0;
-    //Blink the LEDs according to the USB device status
-    BlinkUSBStatus();
     // User Application USB tasks
     if((USBDeviceState < CONFIGURED_STATE)||(USBSuspendControl==1)) return;
 
@@ -116,176 +111,17 @@ int ProcessIO(char* sourceBuffer, char* payloadBuffer, char* checksumBuffer, cha
 		}
 	}
 
+    /*
     //Check if any bytes are waiting in the queue to send to the USB host.
     //If any bytes are waiting, and the endpoint is available, prepare to
     //send the USB packet to the host.
+    */
     
-    if (RS232_Out_Data_Rdy && USBUSARTIsTxTrfReady()){
+    if (RS232_Out_Data_Rdy /* && USBUSARTIsTxTrfReady()*/){
         memcpy(USB_Out_Buffer, RS232_Out_Data, LastRS232Out);
-        
-        enum states {   GET_START_PREFIX, GET_START,
-                        GET_HEADER, GET_LENGTH, GET_DATA, 
-                        GET_END_PREFIX, GET_END};
-        enum dataTypes { START='b', SOURCE, DESTINATION, 
-                         TRANSACTION, PAYLOAD, CHECKSUM,
-                         END};
-        
-        static uint8_t STATE = GET_START_PREFIX;
-        static uint8_t dataType = START;
-        static uint32_t dataLength = 0;
-        static int arrayIndex = 0;
-        
-        char START_TEXT[] = "00";
-        char END_TEXT[] = "01";
-        char SELF[] = WHOAMI;
-        
-        char symStart = 'G';
-        char symSource = 'S';
-        char symDestination = 'D';
-        char symTransactionId = 'T';
-        char symPayload = 'P';
-        char symChecksum = 'K';
-        char symEnd = 'G';
-        
-        int i;
-        
-        for (i=0; i<LastRS232Out; i++){
-            uint8_t c = USB_Out_Buffer[i];
-            uint8_t requiredType;
-            
-            switch (STATE){
-                case GET_START_PREFIX:
-                    dataType = START;
-                    if (c == symStart){
-                        arrayIndex = 0;
-                        STATE = GET_START;
-                        dataLength = 2;
-                    }
-                    break;
-                case GET_START:
-                    if (c != START_TEXT[arrayIndex]){
-                        STATE = GET_START_PREFIX;
-                        break;
-                    }
-                    arrayIndex++;
-                    if (arrayIndex == dataLength){
-                        STATE = GET_HEADER;
-                    }
-                    break;
-                case GET_HEADER:
-                    requiredType = dataType + 1;
-                    
-                    if (c == symSource) c = SOURCE;
-                    else if (c == symDestination) c = DESTINATION;
-                    else if (c == symTransactionId) c = TRANSACTION;
-                    else if (c == symPayload) c = PAYLOAD;
-                    else if (c == symChecksum) c = CHECKSUM;
-                    else if (c == symEnd) c = END;
-                    
-                    if (requiredType == c){
-                        dataType = requiredType;
-                        arrayIndex = 0;
-                        if (c == PAYLOAD){
-                            dataLength = 4;
-                        }
-                        else{
-                            dataLength = 1;
-                        }
-                        STATE = GET_LENGTH;
-                    }
-                    else {
-                        STATE = GET_START_PREFIX;
-                    }
-                    break;
-                case GET_LENGTH:
-                    readBuffer[arrayIndex++] = c;
-                    if (arrayIndex == dataLength){
-                        if (dataType == PAYLOAD){
-                            dataLength = ((uint32_t)(readBuffer[3])<<24) | 
-                                    ((uint32_t)(readBuffer[2])<<16) |
-                                    ((uint32_t)(readBuffer[1])<<8) | 
-                                    ((uint32_t)(readBuffer[0]));
-                        }
-                        else{
-                            dataLength = c;
-                        }
-                        arrayIndex = 0;
-                        STATE = GET_DATA;
-                    }
-//                    dataLength = c;
-//                    #ifdef LENGTH_IN_ASCII
-//                        dataLength = dataLength - '0';
-//                    #endif
-//                    if (dataLength < 0) dataLength = 0;
-//                    if (dataLength > MAX_LENGTH) dataLength = MAX_LENGTH;
-//                    arrayIndex = 0;
-//                    STATE = GET_DATA;
-                    break;
-                case GET_DATA:
-                    readBuffer[arrayIndex++] = c;
-                    if (arrayIndex == dataLength){
-                        if (dataType == SOURCE){
-                            memcpy(sourceBuffer, readBuffer, dataLength);
-                            sourceBuffer[dataLength] = '\0';
-                            STATE = GET_HEADER; 
-                        }
-                        else if (dataType == DESTINATION){
-                            readBuffer[dataLength] = '\0';
-                            if (strcmp(readBuffer, SELF)){
-                                // not aimed at self
-                                STATE = GET_START_PREFIX;
-                            }
-                            else{
-                                STATE = GET_HEADER;
-                            }
-                        }
-                        else if (dataType == TRANSACTION){
-                            memcpy(transactionBuffer, readBuffer, dataLength);
-                            transactionBuffer[dataLength] = '\0';
-                            STATE = GET_HEADER;
-                        }
-                        else if (dataType == PAYLOAD){
-                            memcpy(payloadBuffer, readBuffer, dataLength);
-                            payloadBuffer[dataLength] = '\0';
-                            STATE = GET_HEADER;
-                        }
-                        else if (dataType == CHECKSUM){
-                            memcpy(checksumBuffer, readBuffer, dataLength);
-                            checksumBuffer[dataLength] = '\0';
-                            STATE = GET_END_PREFIX;
-                        }
-                    }
-                    break;
-                case GET_END_PREFIX:
-                    if (c == symEnd){
-                        STATE = GET_END;
-                        arrayIndex = 0;
-                        dataLength = 2;
-                    }
-                    else{
-                        STATE = GET_START_PREFIX;
-                    }
-                    break;
-                case GET_END:
-                    if (c != END_TEXT[arrayIndex]){
-                        STATE = GET_START_PREFIX;
-                        break;
-                    }
-                    arrayIndex++;
-                    if (arrayIndex == dataLength){
-                        // valid data packet
-//                        sprintf(readBuffer,
-//                                    "S: %s\n\rT: %s\n\rP: %s\n\rK: %s\n\r",
-//                                        sourceBuffer, transactionBuffer,
-//                                            payloadBuffer, checksumBuffer);
-//                        putsUSBUSART(readBuffer);
-                        STATE = GET_START_PREFIX;
-                        result = 1;
-                    }
-                    break;
-            }
+        if(R2ProtocolDecode(USB_Out_Buffer ,LastRS232Out, packet) != -1) {
+            result = 1;
         }
-        
         RS232_Out_Data_Rdy = 0;
     }
 
@@ -975,7 +811,7 @@ void UserInit(void)
 	LastRS232Out = 0;
 	lastTransmission = 0;
 
-//	mInitAllLEDs();
+	mInitAllLEDs();
 }//end UserInit
 
 /** EOF main.c *************************************************/

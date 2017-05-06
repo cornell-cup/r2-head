@@ -1,7 +1,7 @@
-build/default/production/sources/usb_main.o:  \
-sources/usb_main.c  \
- sources/../includes/usb_main.h  \
-sources/../includes/R2Protocol.h  \
+build/default/production/sources/main.o:  \
+sources/main.c  \
+ sources/../includes/config.h  \
+sources/../includes/pt_cornell_1_2_1.h  \
  sources/../includes/usb/usb.h  \
 sources/../includes/usb/../Compiler.h  \
  sources/../includes/usb/usb_config.h  \
@@ -13,7 +13,7 @@ sources/../includes/usb/usb_hal.h  \
  sources/../includes/usb/usb_function_cdc.h  \
 sources/../includes/usb/usb.h  \
  sources/../includes/HardwareProfile.h  \
-sources/../includes/R2Protocol.h  \
- sources/../includes/Compiler.h  \
-sources/../includes/usb/usb_config.h  \
- sources/../includes/usb/usb_device.h 
+sources/../includes/Compiler.h  \
+ sources/../includes/usb/usb_config.h  \
+ sources/../includes/usb/usb_device.h  \
+sources/../includes/R2Protocol.h 

@@ -51,17 +51,17 @@ OBJECTDIR=build/${CND_CONF}/${IMAGE_TYPE}
 DISTDIR=dist/${CND_CONF}/${IMAGE_TYPE}
 
 # Source Files Quoted if spaced
-SOURCEFILES_QUOTED_IF_SPACED=sources/usb_main.c sources/usb/usb_descriptors.c sources/usb/usb_device.c sources/usb/usb_function_cdc.c sources/main.c
+SOURCEFILES_QUOTED_IF_SPACED=sources/usb_main.c sources/usb/usb_descriptors.c sources/usb/usb_device.c sources/usb/usb_function_cdc.c sources/main.c sources/R2Protocol.c
 
 # Object Files Quoted if spaced
-OBJECTFILES_QUOTED_IF_SPACED=${OBJECTDIR}/sources/usb_main.o ${OBJECTDIR}/sources/usb/usb_descriptors.o ${OBJECTDIR}/sources/usb/usb_device.o ${OBJECTDIR}/sources/usb/usb_function_cdc.o ${OBJECTDIR}/sources/main.o
-POSSIBLE_DEPFILES=${OBJECTDIR}/sources/usb_main.o.d ${OBJECTDIR}/sources/usb/usb_descriptors.o.d ${OBJECTDIR}/sources/usb/usb_device.o.d ${OBJECTDIR}/sources/usb/usb_function_cdc.o.d ${OBJECTDIR}/sources/main.o.d
+OBJECTFILES_QUOTED_IF_SPACED=${OBJECTDIR}/sources/usb_main.o ${OBJECTDIR}/sources/usb/usb_descriptors.o ${OBJECTDIR}/sources/usb/usb_device.o ${OBJECTDIR}/sources/usb/usb_function_cdc.o ${OBJECTDIR}/sources/main.o ${OBJECTDIR}/sources/R2Protocol.o
+POSSIBLE_DEPFILES=${OBJECTDIR}/sources/usb_main.o.d ${OBJECTDIR}/sources/usb/usb_descriptors.o.d ${OBJECTDIR}/sources/usb/usb_device.o.d ${OBJECTDIR}/sources/usb/usb_function_cdc.o.d ${OBJECTDIR}/sources/main.o.d ${OBJECTDIR}/sources/R2Protocol.o.d
 
 # Object Files
-OBJECTFILES=${OBJECTDIR}/sources/usb_main.o ${OBJECTDIR}/sources/usb/usb_descriptors.o ${OBJECTDIR}/sources/usb/usb_device.o ${OBJECTDIR}/sources/usb/usb_function_cdc.o ${OBJECTDIR}/sources/main.o
+OBJECTFILES=${OBJECTDIR}/sources/usb_main.o ${OBJECTDIR}/sources/usb/usb_descriptors.o ${OBJECTDIR}/sources/usb/usb_device.o ${OBJECTDIR}/sources/usb/usb_function_cdc.o ${OBJECTDIR}/sources/main.o ${OBJECTDIR}/sources/R2Protocol.o
 
 # Source Files
-SOURCEFILES=sources/usb_main.c sources/usb/usb_descriptors.c sources/usb/usb_device.c sources/usb/usb_function_cdc.c sources/main.c
+SOURCEFILES=sources/usb_main.c sources/usb/usb_descriptors.c sources/usb/usb_device.c sources/usb/usb_function_cdc.c sources/main.c sources/R2Protocol.c
 
 
 CFLAGS=
@@ -130,6 +130,12 @@ ${OBJECTDIR}/sources/main.o: sources/main.c  nbproject/Makefile-${CND_CONF}.mk
 	@${RM} ${OBJECTDIR}/sources/main.o 
 	@${FIXDEPS} "${OBJECTDIR}/sources/main.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE) -g -D__DEBUG -D__MPLAB_DEBUGGER_PK3=1 -fframe-base-loclist  -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/sources/main.o.d" -o ${OBJECTDIR}/sources/main.o sources/main.c    -DXPRJ_default=$(CND_CONF)    $(COMPARISON_BUILD) 
 	
+${OBJECTDIR}/sources/R2Protocol.o: sources/R2Protocol.c  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}/sources" 
+	@${RM} ${OBJECTDIR}/sources/R2Protocol.o.d 
+	@${RM} ${OBJECTDIR}/sources/R2Protocol.o 
+	@${FIXDEPS} "${OBJECTDIR}/sources/R2Protocol.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE) -g -D__DEBUG -D__MPLAB_DEBUGGER_PK3=1 -fframe-base-loclist  -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/sources/R2Protocol.o.d" -o ${OBJECTDIR}/sources/R2Protocol.o sources/R2Protocol.c    -DXPRJ_default=$(CND_CONF)    $(COMPARISON_BUILD) 
+	
 else
 ${OBJECTDIR}/sources/usb_main.o: sources/usb_main.c  nbproject/Makefile-${CND_CONF}.mk
 	@${MKDIR} "${OBJECTDIR}/sources" 
@@ -160,6 +166,12 @@ ${OBJECTDIR}/sources/main.o: sources/main.c  nbproject/Makefile-${CND_CONF}.mk
 	@${RM} ${OBJECTDIR}/sources/main.o.d 
 	@${RM} ${OBJECTDIR}/sources/main.o 
 	@${FIXDEPS} "${OBJECTDIR}/sources/main.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE)  -g -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/sources/main.o.d" -o ${OBJECTDIR}/sources/main.o sources/main.c    -DXPRJ_default=$(CND_CONF)    $(COMPARISON_BUILD) 
+	
+${OBJECTDIR}/sources/R2Protocol.o: sources/R2Protocol.c  nbproject/Makefile-${CND_CONF}.mk
+	@${MKDIR} "${OBJECTDIR}/sources" 
+	@${RM} ${OBJECTDIR}/sources/R2Protocol.o.d 
+	@${RM} ${OBJECTDIR}/sources/R2Protocol.o 
+	@${FIXDEPS} "${OBJECTDIR}/sources/R2Protocol.o.d" $(SILENT) -rsi ${MP_CC_DIR}../  -c ${MP_CC}  $(MP_EXTRA_CC_PRE)  -g -x c -c -mprocessor=$(MP_PROCESSOR_OPTION)  -MMD -MF "${OBJECTDIR}/sources/R2Protocol.o.d" -o ${OBJECTDIR}/sources/R2Protocol.o sources/R2Protocol.c    -DXPRJ_default=$(CND_CONF)    $(COMPARISON_BUILD) 
 	
 endif
 
