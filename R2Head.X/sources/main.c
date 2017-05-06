@@ -15,6 +15,12 @@
 
 #include "../includes/R2Protocol.h"
 
+enum AMT203_t {
+    CMD_NOP_A5 = 0x00,
+    CMD_RD_POS = 0x10,
+    CMD_SET_ZERO_POINT = 0x70
+};
+
 // === thread structures ============================================
 // thread control structs
 // note that UART input and output are threads
@@ -88,8 +94,6 @@ static PT_THREAD (protothread_spiReadPos(struct pt *pt))
 //    printf("%x\r\n",enc_read);
     PT_BEGIN(pt);
     printf("PT_THREAD4\r\n");
-    cmd_rdpos = 16; //0x10
-    cmd_NOP = 0xAA;
     
     char buf[60];
     static unsigned int state = 1;
@@ -98,12 +102,12 @@ static PT_THREAD (protothread_spiReadPos(struct pt *pt))
         
         switch (state) {
             case 1:
-                enc_read = spiwrite8(cmd_NOP);
+                enc_read = spiwrite8(CMD_NOP_A5);
                 if (enc_read==0xA5) state = 2;
                 sprintf(buf,"state 1, 0x%0X\r\n",enc_read);
                 break;
             case 2:
-                enc_read = spiwrite8(cmd_rdpos);
+                enc_read = spiwrite8(CMD_RD_POS);
                 state = 3;
                 sprintf(buf,"state 2\r\n");
                 break;
@@ -115,9 +119,9 @@ static PT_THREAD (protothread_spiReadPos(struct pt *pt))
                 if (enc_read ==0x10) state =4;
                 break;
             case 4:
-                encoder = spiwrite8(cmd_NOP);
+                encoder = spiwrite8(CMD_NOP_A5);
                 encoder = encoder<<8;
-                encoder |= spiwrite8(cmd_NOP);
+                encoder |= spiwrite8(CMD_NOP_A5);
                 sprintf(buf,"encoder is 0x%0X\r\n", encoder);
                 state = 1;
                 break;
