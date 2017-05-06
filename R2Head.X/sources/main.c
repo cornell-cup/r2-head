@@ -15,6 +15,9 @@
 
 #include "../includes/R2Protocol.h"
 
+#define cs_low() mPORTBClearBits(BIT_2)
+#define cs_high() mPORTBSetBits(BIT_2)
+
 enum AMT203_t {
     CMD_NOP_A5 = 0x00,
     CMD_RD_POS = 0x10,
@@ -29,7 +32,7 @@ static struct pt pt_spiWrite, pt_spiReadPos, pt_usb;
 static unsigned int cmd_NOP;
 static unsigned int cmd_rdpos;
 static unsigned int cmd_zeroPt;
-static uint16_t encoder =0;
+static uint16_t encoder = 0;
 volatile uint8_t enc_read;
 
 void initSpi(void);
@@ -97,8 +100,9 @@ static PT_THREAD (protothread_spiReadPos(struct pt *pt))
     
     char buf[60];
     static unsigned int state = 1;
+    PT_YIELD_TIME_msec(250); // Encoder initialization
+    
     while(1){
-        
         
         switch (state) {
             case 1:
@@ -116,7 +120,7 @@ static PT_THREAD (protothread_spiReadPos(struct pt *pt))
                 enc_read =0xA5;
                 sprintf(buf,"state 3\r\n");
                 while (enc_read==0xA5) enc_read = spiwrite8(cmd_NOP);
-                if (enc_read ==0x10) state =4;
+                if (enc_read == CMD_RD_POS) state = 4;
                 break;
             case 4:
                 encoder = spiwrite8(CMD_NOP_A5);
@@ -125,11 +129,9 @@ static PT_THREAD (protothread_spiReadPos(struct pt *pt))
                 sprintf(buf,"encoder is 0x%0X\r\n", encoder);
                 state = 1;
                 break;
-            //default:
-                
         }
         putsUSBUSART(buf);
-        PT_YIELD(pt);
+        PT_YIELD_TIME_msec(1);
     }
     PT_END(pt);
 }
@@ -261,9 +263,11 @@ void initSpi(void){
 
 uint8_t spiwrite8(uint8_t c) {   // Transfer one byte c to SPI
     SPI1CONCLR = 0x400; // 8 bit mode
-    while (TxBufFullSPI1());
-    WriteSPI1(c);
-    while (SPI1STATbits.SPIBUSY); // wait for it to end of transaction
+    while (TxBufFullSPI2());
+    cs_low();
+    WriteSPI2(c);
+    while (SPI2STATbits.SPIBUSY); // wait for it to end of transaction
+    cs_high();
     return ReadSPI2();
 }
 
