@@ -8,8 +8,12 @@
 
 #ifndef CONFIG_H
 #define	CONFIG_H
-#define _SUPPRESS_PLIB_WARNING 
+#ifndef _SUPPRESS_PLIB_WARNING
+#define _SUPPRESS_PLIB_WARNING
+#endif
+#ifndef _DISABLE_OPENADC10_CONFIGPORT_WARNING
 #define _DISABLE_OPENADC10_CONFIGPORT_WARNING
+#endif
 #include <plib.h>
 #include <stdio.h>
 

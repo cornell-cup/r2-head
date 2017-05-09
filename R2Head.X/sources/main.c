@@ -14,48 +14,39 @@
 #include "../includes/usb/usb_device.h"
 
 #include "../includes/R2Protocol.h"
+#ifndef _DISABLE_OPENADC10_CONFIGPORT_WARNING
+#define _DISABLE_OPENADC10_CONFIGPORT_WARNING
+#endif
+#ifndef _SUPPRESS_PLIB_WARNING
+#define _SUPPRESS_PLIB_WARNING
+#endif
+#include "plib.h"
 
-#define cs_low() mPORTBClearBits(BIT_2)
-#define cs_high() mPORTBSetBits(BIT_2)
-
-enum AMT203_t {
-    CMD_NOP_A5 = 0x00,
-    CMD_RD_POS = 0x10,
-    CMD_SET_ZERO_POINT = 0x70
-};
+#define SERVO_MIN           2000 // 1ms
+#define SERVO_REST          3750 // 1.5ms
+#define SERVO_MAX           5000 // 2ms
+#define SERVO_RUN_SPEED     500
+#define SERVO_LEFT          (SERVO_REST + SERVO_RUN_SPEED)
+#define SERVO_RIGHT         (SERVO_REST - SERVO_RUN_SPEED)
 
 // === thread structures ============================================
 // thread control structs
 // note that UART input and output are threads
-static struct pt pt_spiWrite, pt_spiReadPos, pt_usb;
+static struct pt pt_readPos, pt_usb, pt_servoT;
 
-static unsigned int cmd_NOP;
-static unsigned int cmd_rdpos;
-static unsigned int cmd_zeroPt;
-static uint16_t encoder = 0;
-volatile uint8_t enc_read;
+volatile int periodTicks = 0;
+volatile int endTime = 0;
+volatile int motorEn = 0;
 
-void initSpi(void);
-uint8_t spiwrite8(uint8_t c);
+void initEncoder(void);
+void initServo(void);
+void setHeadSpeed(int speed);
 
-static PT_THREAD (protothread_spiWrite(struct pt *pt))
-{
-    printf("PT_THREAD2\r\n");
-    printf("%x\r\n",enc_read);
-    PT_BEGIN(pt);
-    cmd_NOP = 0xAA;//0; //0x00
-    while(1){
-  
-        enc_read = spiwrite8(cmd_NOP);
-        PT_YIELD_TIME_msec(10);
-        //return enc_read;
-    }
-    PT_END(pt);
-}
-
+//static PT_
 static PT_THREAD (protothread_usb(struct pt *pt))
 {
     PT_BEGIN(pt);
+    static int result;
     while(1){
         PT_YIELD(pt);
         #if defined(USB_POLLING)
@@ -76,101 +67,80 @@ static PT_THREAD (protothread_usb(struct pt *pt))
         
 		// Application-specific tasks.
 		// Application related code may be added here, or in the ProcessIO() function.
-        struct R2ProtocolPacket comm_packet;
-        uint8_t packetData[30] = {0};
+        static struct R2ProtocolPacket comm_packet;
+        static uint8_t packetData[30] = {0};
         comm_packet.data_len = 30;
         comm_packet.data = packetData;
         
-        int result = ProcessIO(&comm_packet);
+        result = ProcessIO(&comm_packet);
         
-        char readBuffer[100];
+        static char readBuffer[100];
+//        sprintf(readBuffer, "enc_read = 0x%X\n\r", (int)enc_read);
+//        if (USBUSARTIsTxTrfReady())
+//            putsUSBUSART(readBuffer);
         if (result){
             // Process USB transactions here:
+            uint8_t c = comm_packet.data[0];
+            uint32_t t = atoi(&comm_packet.data[1]);
+            if (t < 0) t = 0;
+            motorEn = 1;
+            endTime = PT_GET_TIME() + t;
+            if (c == 'L'){
+                setHeadSpeed(SERVO_LEFT);
+            }
+            if (c == 'R'){
+                setHeadSpeed(SERVO_RIGHT);
+            }
+//            sprintf(readBuffer, "Got %c for %d ms\n\r", c, t);
+//            putsUSBUSART(readBuffer);
         }
     }
     PT_END(pt);
 }
 
-static PT_THREAD (protothread_spiReadPos(struct pt *pt))
-{
-    
-//    printf("%x\r\n",enc_read);
+static PT_THREAD (protothread_servoT(struct pt *pt)){
     PT_BEGIN(pt);
-    printf("PT_THREAD4\r\n");
+    while (1){
+        if (motorEn){
+            PT_YIELD_UNTIL(pt, PT_GET_TIME() > endTime);
+            motorEn = 0;
+            setHeadSpeed(SERVO_REST);
+        }
+        PT_YIELD(pt);
+    }
+    PT_END(pt);
+}
+
+static PT_THREAD (protothread_readPos(struct pt *pt))
+{
+    PT_BEGIN(pt);
     
     char buf[60];
-    static unsigned int state = 1;
-    PT_YIELD_TIME_msec(250); // Encoder initialization
+    PT_YIELD_TIME_msec(250); // Encoder initialization=
     
     while(1){
-        
-        switch (state) {
-            case 1:
-                enc_read = spiwrite8(CMD_NOP_A5);
-                if (enc_read==0xA5) state = 2;
-                sprintf(buf,"state 1, 0x%0X\r\n",enc_read);
-                break;
-            case 2:
-                enc_read = spiwrite8(CMD_RD_POS);
-                state = 3;
-                sprintf(buf,"state 2\r\n");
-                break;
-                //if (enc_read==0xA5)  
-            case 3:
-                enc_read =0xA5;
-                sprintf(buf,"state 3\r\n");
-                while (enc_read==0xA5) enc_read = spiwrite8(cmd_NOP);
-                if (enc_read == CMD_RD_POS) state = 4;
-                break;
-            case 4:
-                encoder = spiwrite8(CMD_NOP_A5);
-                encoder = encoder<<8;
-                encoder |= spiwrite8(CMD_NOP_A5);
-                sprintf(buf,"encoder is 0x%0X\r\n", encoder);
-                state = 1;
-                break;
-        }
-        putsUSBUSART(buf);
-        PT_YIELD_TIME_msec(1);
+        PT_YIELD_UNTIL(pt, mIC5GetIntFlag());
+        mIC5ClearIntFlag();
+        WriteTimer2(0);
+        periodTicks = mIC5ReadCapture();
     }
     PT_END(pt);
 }
 // === Main ======================================================
 void main(void) {
-    __XC_UART = 2;
-
-    /* 	Initialize PPS */
-    // specify PPS group, signal, logical pin name
-    PPSInput (2, U2RX, RPB11); // Assign U2RX to pin RPB11 -- Physical pin 22 on 28 PDIP
-    PPSOutput(4, RPB10, U2TX); // Assign U2TX to pin RPB10 -- Physical pin 21 on 28 PDIP
-
-    //SYSTEMConfigPerformance(PBCLK);
+    
     ANSELA = 0; ANSELB = 0; 
     // === config threads ==========
     // turns OFF UART support and debugger pin, unless defines are set
     PT_setup();
    
-    UARTConfigure(UART2, UART_ENABLE_PINS_TX_RX_ONLY);
-    UARTSetLineControl(UART2, UART_DATA_SIZE_8_BITS | UART_PARITY_NONE | UART_STOP_BITS_1);
-    UARTSetDataRate(UART2, PB_FREQ, BAUDRATE);
-    UARTEnable(UART2, UART_ENABLE_FLAGS(UART_PERIPHERAL | UART_RX | UART_TX));
-    
-    // PuTTY
-    clrscr();  //clear PuTTY screen
-    home();
-    // By default, MPLAB XC32's libraries use UART2 for STDOUT.
-    // This means that formatted output functions such as printf()
-    // will send their output to UART2
-    printf("UART Interface Initialized\n\r");
     // === setup system wide interrupts  ========
     INTEnableSystemMultiVectoredInt();
 
 	CloseADC10();	// ensure the ADC is off before setting the configuration
     
       // init the threads
-    //PT_INIT(&pt_UART);
-    PT_INIT(&pt_spiReadPos);
-    PT_INIT(&pt_spiWrite);
+    PT_INIT(&pt_servoT);
     PT_INIT(&pt_usb);
     
    
@@ -216,58 +186,60 @@ void main(void) {
     USBDeviceInit();	//usb_device.c.  Initializes USB module SFRs and firmware
     					//variables to known states.
     
+//    initEncoder();
+    initServo();
+    
     #if defined(USB_INTERRUPT)
         USBDeviceAttach();
     #endif
     // round-robin scheduler for threads
     while (1){
-
-//        PT_SCHEDULE(protothread_spiWrite(&pt_spiWrite));
-        PT_SCHEDULE(protothread_spiReadPos(&pt_spiReadPos));
+        PT_SCHEDULE(protothread_servoT(&pt_servoT));
         PT_SCHEDULE(protothread_usb(&pt_usb));
         
     }
 } // main
 
-void initSpi(void){
- 
-    // Incorrect pins:
-    mPORTBSetPinsDigitalIn(BIT_0 | BIT_3);
+void initEncoder(void){
     
-    // SCK:
-    mPORTBSetPinsDigitalOut(BIT_15);
+    // A, B, X input:
+    mPORTBSetPinsDigitalIn(BIT_0 | BIT_1 | BIT_2);
     
-    // MOSI:
-    mPORTBSetPinsDigitalOut(BIT_1);
-    PPSOutput(2, RPB1, SDO2);
+    // B:
+//    PPSInput(4, IC2, RPB0);
     
-    // MISO:
-    mPORTASetPinsDigitalIn(BIT_4);
-    PPSInput(3, SDI2, RPA4);
+    // A:
+    PPSInput(3, IC5, RPB2);
     
-    // CS:
-    mPORTBSetPinsDigitalOut(BIT_2);
-    mPORTBSetBits(BIT_2);
-        
-    // divide Fpb by 2, configure the I/O ports. Not using SS in this example
-    // 8 bit transfer CKP=1 CKE=1
-    // possibles SPI_OPEN_CKP_HIGH;   SPI_OPEN_SMP_END;  SPI_OPEN_CKE_REV
-    // For any given peripherial, you will need to match these
-   
-    volatile int spiClkDiv = 256 ; // 20 MHz max speed for this RAM
-    SpiChnOpen(SPI_CHANNEL2, SPI_OPEN_ON | SPI_OPEN_MODE8 | SPI_OPEN_MSTEN | 
-            SPI_OPEN_CKE_REV , spiClkDiv);   
+    // X:
+    PPSInput(2, INT3, RPB1);
+    
+    // B:
+//    OpenCapture2(IC_ON | IC_TIMER3_SRC | IC_INT_1CAPTURE | IC_EVERY_RISE_EDGE);
+//    mIC2ClearIntFlag();
+//    OpenTimer3(T3_ON | T3_PS_1_1, 0xFFFF);
+    
+    // A:
+    OpenCapture5(IC_ON | IC_TIMER2_SRC | IC_INT_1CAPTURE | IC_EVERY_RISE_EDGE);
+    mIC5ClearIntFlag();
+    OpenTimer2(T2_ON | T2_PS_1_1, 0xFFFF);
+    
     
     
 }
 
-uint8_t spiwrite8(uint8_t c) {   // Transfer one byte c to SPI
-    SPI1CONCLR = 0x400; // 8 bit mode
-    while (TxBufFullSPI2());
-    cs_low();
-    WriteSPI2(c);
-    while (SPI2STATbits.SPIBUSY); // wait for it to end of transaction
-    cs_high();
-    return ReadSPI2();
+void initServo(void){
+    mPORTBSetPinsDigitalOut(BIT_4);
+    mPORTBClearBits(BIT_4);
+    PPSOutput(1, RPB4, OC1);
+    OpenTimer3(T3_ON | T3_PS_1_16, 50000-1);
+    OpenOC1(OC_ON | OC_TIMER_MODE16 | OC_TIMER3_SRC | OC_PWM_FAULT_PIN_DISABLE, SERVO_REST, SERVO_REST);
+    ConfigIntTimer3(T3_INT_OFF);
+    setHeadSpeed(SERVO_REST);
 }
 
+void setHeadSpeed(int speed){
+    if (speed < SERVO_MIN) speed = SERVO_MIN;
+    if (speed > SERVO_MAX) speed = SERVO_MAX;
+    SetDCOC1PWM(speed);
+}

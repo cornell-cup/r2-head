@@ -60,7 +60,12 @@
 #ifndef __COMPILER_H
 #define __COMPILER_H
 
-#define _SUPPRESS_PLIB_WARNING 1
+#ifndef _SUPPRESS_PLIB_WARNING
+#define _SUPPRESS_PLIB_WARNING
+#endif
+#ifndef _DISABLE_OPENADC10_CONFIGPORT_WARNING
+#define _DISABLE_OPENADC10_CONFIGPORT_WARNING
+#endif
 #include <plib.h>
 #include <stdio.h>
 #include <stdlib.h>

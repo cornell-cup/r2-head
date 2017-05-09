@@ -811,7 +811,6 @@ void UserInit(void)
 	LastRS232Out = 0;
 	lastTransmission = 0;
 
-	mInitAllLEDs();
 }//end UserInit
 
 /** EOF main.c *************************************************/
