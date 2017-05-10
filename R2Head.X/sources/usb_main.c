@@ -117,7 +117,7 @@ int ProcessIO(struct R2ProtocolPacket *packet)
             if (strncmp(packet->destination, WHOAMI, strlen(WHOAMI)*2)){
                 result = WRONG_DEST;
             }
-            else if (strncmp(packet->data, WHOAMI_REQ, strlen(WHOAMI_REQ)*2)){
+            else if (strncmp(packet->data, WHOAREYOU_REQ, strlen(WHOAREYOU_REQ)*2)){
                 result = WHOAMI_PING;
                 char tempbuffer[100];
                 sprintf(tempbuffer, "%s", WHOAMI);
