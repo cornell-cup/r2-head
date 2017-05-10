@@ -4,9 +4,9 @@
 #include <time.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <peripheral/spi_1xx_2xx_5xx.h>
 
 #include "../includes/usb/usb.h"
+#include "../includes/usb_main.h"
 #include "../includes/usb/usb_function_cdc.h"
 #include "../includes/HardwareProfile.h"
 #include "../includes/Compiler.h"
@@ -25,9 +25,10 @@
 #define SERVO_MIN           2000 // 1ms
 #define SERVO_REST          3750 // 1.5ms
 #define SERVO_MAX           5000 // 2ms
-#define SERVO_RUN_SPEED     500
+#define SERVO_RUN_SPEED     900
 #define SERVO_LEFT          (SERVO_REST + SERVO_RUN_SPEED)
 #define SERVO_RIGHT         (SERVO_REST - SERVO_RUN_SPEED)
+#define t_revolution        9.3 // in seconds
 
 // === thread structures ============================================
 // thread control structs
@@ -73,12 +74,7 @@ static PT_THREAD (protothread_usb(struct pt *pt))
         comm_packet.data = packetData;
         
         result = ProcessIO(&comm_packet);
-        
-        static char readBuffer[100];
-//        sprintf(readBuffer, "enc_read = 0x%X\n\r", (int)enc_read);
-//        if (USBUSARTIsTxTrfReady())
-//            putsUSBUSART(readBuffer);
-        if (result){
+        if (result == REG_DATA){
             // Process USB transactions here:
             uint8_t c = comm_packet.data[0];
             uint32_t t = atoi(&comm_packet.data[1]);

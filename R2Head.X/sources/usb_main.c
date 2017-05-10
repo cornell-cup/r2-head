@@ -52,22 +52,21 @@
 #include "../includes/usb/usb_config.h"
 #include "../includes/usb/usb_device.h"
 
+#include <string.h>
+
 /** V A R I A B L E S ********************************************************/
 char USB_Out_Buffer[CDC_DATA_OUT_EP_SIZE];
 char RS232_Out_Data[CDC_DATA_IN_EP_SIZE];
 
 unsigned char  NextUSBOut;
-//char RS232_In_Data;
 unsigned char    LastRS232Out;  // Number of characters in the buffer
 unsigned char    RS232cp;       // current position within the buffer
-unsigned char RS232_Out_Data_Rdy = 0;
-USB_HANDLE  lastTransmission;
+unsigned char    RS232_Out_Data_Rdy = 0;
+USB_HANDLE       lastTransmission;
 
 /** P R I V A T E  P R O T O T Y P E S ***************************************/
-//void ProcessIO(char* sourceBuffer, char* payloadBuffer, char* checksumBuffer, char* transactionBuffer);
 void USBDeviceTasks(void);
 void USBCBSendResume(void);
-void BlinkUSBStatus(void);
 void UserInit(void);
 
 void loadBuffer(uint8_t* copyBuffer, uint16_t copyLength);
@@ -110,17 +109,34 @@ int ProcessIO(struct R2ProtocolPacket *packet)
 			RS232cp = 0;  // Reset the current position
 		}
 	}
-
-    /*
-    //Check if any bytes are waiting in the queue to send to the USB host.
-    //If any bytes are waiting, and the endpoint is available, prepare to
-    //send the USB packet to the host.
-    */
     
-    if (RS232_Out_Data_Rdy /* && USBUSARTIsTxTrfReady()*/){
+    if (RS232_Out_Data_Rdy){
         memcpy(USB_Out_Buffer, RS232_Out_Data, LastRS232Out);
         if(R2ProtocolDecode(USB_Out_Buffer ,LastRS232Out, packet) != -1) {
-            result = 1;
+            result = REG_DATA;
+            if (strncmp(packet->destination, WHOAMI, strlen(WHOAMI)*2)){
+                result = WRONG_DEST;
+            }
+            else if (strncmp(packet->data, WHOAMI_REQ, strlen(WHOAMI_REQ)*2)){
+                result = WHOAMI_PING;
+                char tempbuffer[100];
+                sprintf(tempbuffer, "%s", WHOAMI);
+                struct R2ProtocolPacket params = {"src", "dest", "", strlen(tempbuffer), tempbuffer, ""};
+                char* srcptr = (char*)&params.source;
+                char* destptr = (char*)&params.destination;
+                sprintf(srcptr, "%s", WHOAMI);
+                sprintf(destptr, "%s", packet->source);
+                
+                uint8_t usbout[256];
+                int len = R2ProtocolEncode(&params, usbout, 256);
+                if (len){
+                    putUSBUSART(usbout, len);
+                    CDCTxService();
+                }
+            }
+        }
+        else{
+            result = WRONG_FORMAT;
         }
         RS232_Out_Data_Rdy = 0;
     }
@@ -206,97 +222,6 @@ void mySetLineCodingHandler(void)
     }
 }
 #endif
-
-/********************************************************************
- * Function:        void BlinkUSBStatus(void)
- *
- * PreCondition:    None
- *
- * Input:           None
- *
- * Output:          None
- *
- * Side Effects:    None
- *
- * Overview:        BlinkUSBStatus turns on and off LEDs 
- *                  corresponding to the USB device state.
- *
- * Note:            mLED macros can be found in HardwareProfile.h
- *                  USBDeviceState is declared and updated in
- *                  usb_device.c.
- *******************************************************************/
-void BlinkUSBStatus(void)
-{
-    static WORD led_count=0;
-    
-    if(led_count == 0)led_count = 10000U;
-    led_count--;
-
-    #define mLED_Both_Off()         {mLED_1_Off();mLED_2_Off();}
-    #define mLED_Both_On()          {mLED_1_On();mLED_2_On();}
-    #define mLED_Only_1_On()        {mLED_1_On();mLED_2_Off();}
-    #define mLED_Only_2_On()        {mLED_1_Off();mLED_2_On();}
-
-    if(USBSuspendControl == 1)
-    {
-        if(led_count==0)
-        {
-            mLED_1_Toggle();
-            if(mGetLED_1())
-            {
-                mLED_2_On();
-            }
-            else
-            {
-                mLED_2_Off();
-            }
-        }//end if
-    }
-    else
-    {
-        if(USBDeviceState == DETACHED_STATE)
-        {
-            mLED_Both_Off();
-        }
-        else if(USBDeviceState == ATTACHED_STATE)
-        {
-            mLED_Both_On();
-        }
-        else if(USBDeviceState == POWERED_STATE)
-        {
-            mLED_Only_1_On();
-        }
-        else if(USBDeviceState == DEFAULT_STATE)
-        {
-            mLED_Only_2_On();
-        }
-        else if(USBDeviceState == ADDRESS_STATE)
-        {
-            if(led_count == 0)
-            {
-                mLED_1_Toggle();
-                mLED_2_Off();
-            }//end if
-        }
-        else if(USBDeviceState == CONFIGURED_STATE)
-        {
-            if(led_count==0)
-            {
-                mLED_1_Toggle();
-                if(mGetLED_1())
-                {
-                    mLED_2_Off();
-                }
-                else
-                {
-                    mLED_2_On();
-                }
-            }//end if
-        }//end if(...)
-    }//end if(UCONbits.SUSPND...)
-
-}//end BlinkUSBStatus
-
 
 // ******************************************************************************************************
 // ************** USB Callback Functions ****************************************************************

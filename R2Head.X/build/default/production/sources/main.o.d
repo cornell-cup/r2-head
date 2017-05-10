@@ -10,6 +10,8 @@ sources/../includes/usb/usb_ch9.h  \
  sources/../includes/usb/usb_device.h  \
 sources/../includes/usb/usb_hal.h  \
  sources/../includes/usb/usb_hal_pic32.h  \
+sources/../includes/usb_main.h  \
+ sources/../includes/R2Protocol.h  \
  sources/../includes/usb/usb_function_cdc.h  \
 sources/../includes/usb/usb.h  \
  sources/../includes/HardwareProfile.h  \
