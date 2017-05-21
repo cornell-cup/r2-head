@@ -10,24 +10,11 @@ except serial.SerialException:
 	exit()
 	
 try:
-	str = R2Protocol.encode(b"NUC", b"HEAD", b"", b"L0")
+	str = R2Protocol.encode(b"NUC", b"HEAD", b"", b"P")
 	print(str)
 	s.write(str)
 	print("sent")
-	sleep(1)
-	line = s.readline()
-	print(line)
-except serial.SerialTimeoutException:
-	print("Serial port write timed out 1!")
-
-sleep(1)
-
-try:
-	str = R2Protocol.encode(b"NUC", b"HEAD", b"", b"R0")
-	print(str)
-	s.write(str)
-	print("sent")
-	sleep(1)
+	#sleep(1)
 	line = s.readline()
 	print(line)
 except serial.SerialTimeoutException:

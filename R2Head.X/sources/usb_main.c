@@ -114,10 +114,10 @@ int ProcessIO(struct R2ProtocolPacket *packet)
         memcpy(USB_Out_Buffer, RS232_Out_Data, LastRS232Out);
         if(R2ProtocolDecode(USB_Out_Buffer ,LastRS232Out, packet) != -1) {
             result = REG_DATA;
-            if (strncmp(packet->destination, WHOAMI, strlen(WHOAMI)*2)){
+            if (strncmp(packet->destination, WHOAMI, strlen(WHOAMI)*2)==0){
                 result = WRONG_DEST;
             }
-            if (strncmp(packet->data, WHOAREYOU_REQ, strlen(WHOAREYOU_REQ)*2)){
+            if (strncmp(packet->data, WHOAREYOU_REQ, strlen(WHOAREYOU_REQ)*2)==0){
                 result = WHOAMI_PING;
                 char tempbuffer[100];
                 sprintf(tempbuffer, "%s", WHOAMI);

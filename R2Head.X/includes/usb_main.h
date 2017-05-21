@@ -20,6 +20,6 @@ enum usb_result{
     WRONG_DEST
 };
 
-#define WHOAREYOU_REQ "WHOAREYOU"
+#define WHOAREYOU_REQ "P"
 
 #endif
