@@ -2,6 +2,11 @@
 #include <Servo.h>
 //#include <Encoder.h>
 //#include "math.h"
+/*
+Created by Jackie Woo
+As of 10/20/18, this code is for simple head movement right and left.
+Has not been optimized for specific head motions. 
+*/
 
 #define PIN_HEAD 5
 Servo head;
